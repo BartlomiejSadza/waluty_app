@@ -6,7 +6,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 logging.basicConfig(
-    level=logging.INFO,  # Możesz zmienić na DEBUG, aby zobaczyć więcej szczegółów
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 # Wczytaj dane z pliku .env
