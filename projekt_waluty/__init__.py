@@ -41,10 +41,11 @@ def pobierz_top30_usdt():
 
 # Pivot na dane z szerokimi kolumnami
 def przygotuj_dane_pivot(df):
+    # Zaokrąglanie daty do pełnych sekund
+    df['data'] = df['data'].dt.floor('s')  # Zaokrąglanie do pełnych sekund
     # Grupowanie i pivotowanie
     df_grouped = df.groupby(['data', 'symbol'])['cena'].mean().unstack().reset_index()
     return df_grouped
-
 
 # Zapis do SQL
 def wrzuc_do_sql(df):
@@ -58,12 +59,12 @@ def wrzuc_do_sql(df):
     cursor = conn.cursor()
 
     # Przygotowanie tabeli (jednorazowo, jeśli jeszcze jej nie ma)
-    columns = ', '.join([f"[{col}] FLOAT" for col in df.columns if col != 'data'])
+    columns = ', '.join([f"[{col}]" for col in df.columns])
     create_table_query = f"""
     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='{TABLE}' AND xtype='U')
     CREATE TABLE {TABLE} (
-        data DATETIME,
-        {columns}
+        data DATETIME PRIMARY KEY,
+        {', '.join([f"[{col}] FLOAT" for col in df.columns if col != 'data'])}
     )
     """
     cursor.execute(create_table_query)
@@ -71,11 +72,20 @@ def wrzuc_do_sql(df):
 
     # Wstawianie danych
     for _, row in df.iterrows():
-        values = ', '.join([str(row[col]) if pd.notna(row[col]) else 'NULL' for col in df.columns])
-        insert_query = f"INSERT INTO {TABLE} VALUES ({values})"
+        # Formatowanie wartości dla kolumn
+        data_value = f"'{row['data'].strftime('%Y-%m-%d %H:%M:%S')}'"  # Formatowanie daty
+        column_names = ', '.join([f"[{col}]" for col in df.columns])
+        column_values = ', '.join(
+            [data_value] +
+            [str(row[col]) if pd.notna(row[col]) else 'NULL' for col in df.columns if col != 'data']
+        )
+        insert_query = f"INSERT INTO {TABLE} ({column_names}) VALUES ({column_values})"
+        print(f"DEBUG QUERY: {insert_query}")  # Debugowanie zapytania
         cursor.execute(insert_query)
     conn.commit()
     conn.close()
+
+
 
 
 # Główna funkcja
